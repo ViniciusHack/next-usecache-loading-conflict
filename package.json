@@ -1,4 +1,5 @@
 {
+  "name": "cache-component-with-loading-repro",
   "private": true,
   "scripts": {
     "dev": "next dev",

@@ -1,45 +1,83 @@
-This is a [Next.js](https://nextjs.org/) template to use when reporting a [bug in the Next.js repository](https://github.com/vercel/next.js/issues) with the `app/` directory.
+# Cache Components + loading.tsx Bug Reproduction
 
-## Getting Started
+This is a minimal reproduction for a Next.js bug where **ISR/caching stops working when `loading.tsx` is present**.
 
-These are the steps you should follow when creating a bug report:
+## Bug Description
 
-- Bug reports must be verified against the `next@canary` release. The canary version of Next.js ships daily and includes all features and fixes that have not been released to the stable version yet. Think of canary as a public beta. Some issues may already be fixed in the canary version, so please verify that your issue reproduces before opening a new issue. Issues not verified against `next@canary` will be closed after 30 days.
-- Make sure your issue is not a duplicate. Use the [GitHub issue search](https://github.com/vercel/next.js/issues) to see if there is already an open issue that matches yours. If that is the case, upvoting the other issue's first comment is desirable as we often prioritize issues based on the number of votes they receive. Note: Adding a "+1" or "same issue" comment without adding more context about the issue should be avoided. If you only find closed related issues, you can link to them using the issue number and `#`, eg.: `I found this related issue: #3000`.
-- If you think the issue is not in Next.js, the best place to ask for help is our [Discord community](https://nextjs.org/discord) or [GitHub discussions](https://github.com/vercel/next.js/discussions). Our community is welcoming and can often answer a project-related question faster than the Next.js core team.
-- Make the reproduction as minimal as possible. Try to exclude any code that does not help reproducing the issue. E.g. if you experience problems with Routing, including ESLint configurations or API routes aren't necessary. The less lines of code is to read through, the easier it is for the Next.js team to investigate. It may also help catching bugs in your codebase before publishing an issue.
-- Don't forget to create a new repository on GitHub and make it public so that anyone can view it and reproduce it.
+When using Next.js 16 with `cacheComponents: true` and a `loading.tsx` file (which creates a Suspense boundary), the `"use cache"` directive with `cacheLife("hours")` is not being honored for dynamically generated routes. Instead of caching the result after the first request, the page re-executes on every subsequent request, showing the loading state each time.
 
-## How to use this template
+### Expected Behavior
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
+For routes with `"use cache"` and `cacheLife("hours")`:
+1. First visit to a dynamic route (e.g., `/posts/2`) → shows loading, fetches data, renders page, **caches result**
+2. Subsequent visits → serves **cached content directly** (no loading shown, timestamp unchanged)
 
+### Actual Behavior (with loading.tsx)
+
+1. First visit to `/posts/2` → shows loading, fetches data, renders page
+2. Subsequent visits → **shows loading again**, re-executes the page component (timestamp changes on each visit)
+
+The presence of `loading.tsx` appears to trigger Partial Prerendering (PPR) mode, and the caching behavior breaks for the dynamic content.
+
+### Working Correctly (without loading.tsx)
+
+Routes in `/posts-no-loading/[id]` (identical code, no `loading.tsx`) work as expected:
+- First visit → ISR cache miss, generates page
+- Subsequent visits → serves from cache (timestamp stays the same)
+
+## Observations from Vercel Logs
+
+- `/posts-no-loading/[id]` → Shows "ISR Function Invocation" with "ISR Cache Miss" (standard ISR)
+- `/posts/[id]` → Shows "Cache: Partial Prerender" with status "PRERENDER" (PPR mode)
+
+The PPR mode seems to be breaking the `"use cache"` behavior for the dynamic segment.
+
+## Setup
+
+This reproduction uses:
+- Next.js `canary` (verified against latest)
+- `cacheComponents: true` in `next.config.ts`
+- `"use cache"` directive with `cacheLife("hours")`
+- `generateStaticParams` returning `[{ id: "1" }]` for build-time generation
+- 5-second delay to make the issue more obvious
+
+## How to Reproduce
+
+1. Install dependencies:
 ```bash
-npx create-next-app --example reproduction-template reproduction-app
+npm install
 ```
 
+2. Build the app:
 ```bash
-yarn create next-app --example reproduction-template reproduction-app
+npm run build
 ```
 
+3. Start the production server:
 ```bash
-pnpm create next-app --example reproduction-template reproduction-app
+npm start
 ```
 
-## Learn More
+4. Test the bug:
+   - Visit `/posts/2` (with loading.tsx)
+   - Wait 5 seconds for it to load
+   - **Refresh the page** → Notice "Loading..." appears again and timestamp changes
+   - Visit `/posts-no-loading/2` (without loading.tsx)
+   - Wait 5 seconds for it to load
+   - **Refresh the page** → Content loads instantly, timestamp is the same (cached)
 
-To learn more about Next.js, take a look at the following resources:
+## Key Files
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-- [How to Contribute to Open Source (Next.js)](https://www.youtube.com/watch?v=cuoNzXFLitc) - a video tutorial by Lee Robinson
-- [Triaging in the Next.js repository](https://github.com/vercel/next.js/blob/canary/contributing.md#triaging) - how we work on issues
-- [CodeSandbox](https://codesandbox.io/s/github/vercel/next.js/tree/canary/examples/reproduction-template) - Edit this repository on CodeSandbox
+- `app/posts/[id]/page.tsx` - Route WITH `loading.tsx` (broken caching)
+- `app/posts/[id]/loading.tsx` - The loading component that triggers the bug
+- `app/posts-no-loading/[id]/page.tsx` - Route WITHOUT `loading.tsx` (working correctly)
+- `next.config.ts` - Has `cacheComponents: true`
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+## Note
 
-## Deployment
+Static generation at build time (post ID 1) works correctly even with `loading.tsx`. The bug only affects dynamically generated routes that should be cached via ISR.
 
-If your reproduction needs to be deployed, the easiest way is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Links
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Next.js Issue: [Link to issue]
+- Deployed reproduction: [Link to Vercel deployment]
