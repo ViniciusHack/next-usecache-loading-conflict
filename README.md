@@ -19,6 +19,24 @@ For routes with `"use cache"` and `cacheLife("hours")`:
 
 The presence of `loading.tsx` appears to trigger Partial Prerendering (PPR) mode, and the caching behavior breaks for the dynamic content.
 
+### Environment-Specific Behavior
+
+The behavior varies across different Next.js runtime environments:
+
+**Development mode (`npm run dev`)**
+- Loading state is **never shown** (unexpected)
+- Caching **works correctly**
+
+**Local production mode (`npm run start`)**
+- Loading state is **always shown** for a few miliseconds
+- Caching **works correctly** (content is cached after first request)
+- The loading.tsx is displayed during the initial fetch, but cached content is served on subsequent requests. The computation is running just once and being cached.
+
+**Vercel production environment**
+- Loading state appears on every request
+- Caching is **broken** (pages re-execute on each visit)
+- This is where the primary bug manifests
+
 ### Working Correctly (without loading.tsx)
 
 Routes in `/posts-no-loading/[id]` (identical code, no `loading.tsx`) work as expected:
