@@ -39,4 +39,3 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
     </div>
   );
 }
-
