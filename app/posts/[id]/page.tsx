@@ -6,7 +6,7 @@ export async function generateStaticParams() {
 
 export default async function PostPage({ params }: { params: Promise<{ id: string }> }) {
   "use cache";
-  cacheLife("hours")
+    cacheLife("minutes")
   const { id } = await params;
   const renderTime = new Date().toISOString();
   let message = "";
@@ -26,7 +26,7 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
       <h2>Post {id} (with loading.tsx)</h2>
       <p>{message}.</p>
       <p style={{ fontSize: "14px", color: "#666" }}>
-        Using "use cache" with cacheLife("hours"). This page fetches data from the API and waits 5 seconds before displaying.
+        Using "use cache" with   cacheLife("minutes"). This page fetches data from the API and waits 5 seconds before displaying.
       </p>
       <p style={{ fontSize: "12px", color: "#999" }}>
         <strong>Rendered at:</strong> {renderTime}
