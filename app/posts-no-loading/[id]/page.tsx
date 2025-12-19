@@ -7,9 +7,9 @@ export async function generateStaticParams() {
 export default async function PostPage({ params }: { params: Promise<{ id: string }> }) {
   "use cache";
   cacheLife({
-    stale: 10,
-    revalidate: 45,
-    expire: 120
+    stale: 45,
+    revalidate: 120,
+    expire: 300
   })
   const { id } = await params;
   const renderTime = new Date().toISOString();
